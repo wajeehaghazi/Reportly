@@ -5,7 +5,6 @@ from nodes.synthesizer import synthesizer
 from state.state import State
 from langgraph.types import Send
 
-
 def assign_workers(state: State):
     """
     Create one worker per section

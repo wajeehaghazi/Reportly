@@ -6,12 +6,17 @@ from utils.planner import planner
 from state.state import State
 
 
-def orchestrator(state:State):
+async def orchestrator(state:State):
   """It will generate the plan for the report"""
-  report_section= planner.invoke(
-      [
-          SystemMessage(content="Generate the plan for the report"),
-          HumanMessage(content=f"Here is the report topic{state['topic']}")
-      ]
-  )
-  return {"sections": report_section.sections}
+  try:
+    report_section= await planner.ainvoke(
+        [
+            SystemMessage(content="Generate the plan for the report"),
+            HumanMessage(content=f"Here is the report topic{state['topic']}")
+        ]
+    )
+    return {"sections": report_section.sections}
+  except Exception as e:
+    print (f"Error in orchestrator: {e}")
+  return {"sections": []}
+  

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from state.state import State
 
 import tempfile
 import re
+import logging
 
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -29,6 +30,18 @@ from reportlab.lib.styles import (
 
 from reportlab.lib.units import inch, mm
 from reportlab.lib.enums import TA_CENTER
+
+
+# =========================
+# LOGGING
+# =========================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -55,6 +68,7 @@ class ReportRequest(BaseModel):
 # =========================
 
 def assign_workers(state: State):
+
     return [
         Send("llm_call", {"section": s})
         for s in state["sections"]
@@ -94,22 +108,59 @@ async def health():
 
 
 # =========================
-# GENERATE REPORT (ASYNC)
+# GENERATE REPORT
 # =========================
 
 @app.post("/generate-report")
 async def generate_report(request: ReportRequest):
 
-    result = await run_in_threadpool(
-        workflow.invoke,
-        {
-            "topic": request.topic
-        }
-    )
+    try:
 
-    return {
-        "final_report": result["final_report"]
-    }
+        if not request.topic.strip():
+
+            raise HTTPException(
+                status_code=400,
+                detail="Topic cannot be empty"
+            )
+
+        logger.info(
+            f"Generating report for topic: {request.topic}"
+        )
+
+        result = await run_in_threadpool(
+            workflow.invoke,
+            {
+                "topic": request.topic
+            }
+        )
+
+        report_text = result.get("final_report")
+
+        if not report_text:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Report generation failed"
+            )
+
+        return {
+            "final_report": report_text
+        }
+
+    except HTTPException as e:
+
+        raise e
+
+    except Exception as e:
+
+        logger.error(
+            f"Unexpected error in generate_report: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
 
 
 # =========================
@@ -200,7 +251,11 @@ def create_pdf(report_text):
 
         if line.startswith("#"):
 
-            text = re.sub(r"#", "", line).strip()
+            text = re.sub(
+                r"#",
+                "",
+                line
+            ).strip()
 
             elements.append(
                 Paragraph(
@@ -211,7 +266,11 @@ def create_pdf(report_text):
 
         elif line.startswith("-"):
 
-            clean = re.sub(r"[-*]", "", line).strip()
+            clean = re.sub(
+                r"[-*]",
+                "",
+                line
+            ).strip()
 
             bullet_items.append(
                 ListItem(
@@ -271,28 +330,63 @@ def create_pdf(report_text):
 
 
 # =========================
-# GENERATE PDF (ASYNC)
+# GENERATE PDF
 # =========================
 
 @app.post("/generate-report-pdf")
 async def generate_report_pdf(request: ReportRequest):
 
-    result = await run_in_threadpool(
-        workflow.invoke,
-        {
-            "topic": request.topic
-        }
-    )
+    try:
 
-    report_text = result["final_report"]
+        if not request.topic.strip():
 
-    file_path = await run_in_threadpool(
-        create_pdf,
-        report_text
-    )
+            raise HTTPException(
+                status_code=400,
+                detail="Topic cannot be empty"
+            )
 
-    return FileResponse(
-        path=file_path,
-        filename="report.pdf",
-        media_type="application/pdf"
-    )
+        logger.info(
+            f"Generating PDF for topic: {request.topic}"
+        )
+
+        result = await run_in_threadpool(
+            workflow.invoke,
+            {
+                "topic": request.topic
+            }
+        )
+
+        report_text = result.get("final_report")
+
+        if not report_text:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Report generation failed"
+            )
+
+        file_path = await run_in_threadpool(
+            create_pdf,
+            report_text
+        )
+
+        return FileResponse(
+            path=file_path,
+            filename="report.pdf",
+            media_type="application/pdf"
+        )
+
+    except HTTPException as e:
+
+        raise e
+
+    except Exception as e:
+
+        logger.error(
+            f"Unexpected error in generate_report_pdf: {str(e)}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )

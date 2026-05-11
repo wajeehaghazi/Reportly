@@ -17,13 +17,13 @@ Modular and extensible codebase for future agent/tool integrations
 
 **Tech Stack**
 
-Python
-LangGraph
-LangChain
-FastAPI
-Tavily Search API
-Pydantic
-Docker
+Python,
+LangGraph,
+LangChain,
+FastAPI,
+Tavily Search API,
+Pydantic,
+Docker,
 AsyncIO
 
 **Architecture Overview**

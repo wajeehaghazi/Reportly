@@ -28,19 +28,8 @@ AsyncIO
 
 **Architecture Overview**
 
-User Topic
-    ↓
-Orchestrator Agent
-    ↓
-Planner Agent
-    ↓
-Parallel Worker Agents
-    ↓
-Tavily Internet Research
-    ↓
-Section Generation
-    ↓
-Final Report Compilation
+<img width="298" height="332" alt="image" src="https://github.com/user-attachments/assets/776783ca-a64a-4b93-9aff-0f610bc5406f" />
+
 
 **Use Cases**
 

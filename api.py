@@ -1,171 +1,154 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from starlette.concurrency import run_in_threadpool
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-import logging
-import uuid
+import sys
 import os
+import uuid
 
-from main import orchestrator_worker
-
-# --------------------------------------------------
-# Logging Configuration
-# --------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+sys.path.append(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
 )
 
-logger = logging.getLogger(__name__)
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
-# --------------------------------------------------
+from pydantic import BaseModel
+
+from src.workflow.main import orchestrator_worker
+
+from src.utils.logger import logger
+
+from src.services.pdf.client import generate_pdf
+
+
+# -----------------------------------------
 # FastAPI App
-# --------------------------------------------------
+# -----------------------------------------
 
 app = FastAPI(
     title="Reportly API",
-    description="Generate structured AI reports and download as PDF",
+    description="AI Report Generator using LangGraph and Tavily",
     version="1.0.0"
 )
 
-# --------------------------------------------------
-# Request Model
-# --------------------------------------------------
+# -----------------------------------------
+# Request Schema
+# -----------------------------------------
 
 class ReportRequest(BaseModel):
+
     topic: str
 
-# --------------------------------------------------
-# Health Check Endpoint
-# --------------------------------------------------
+
+# -----------------------------------------
+# Health Check
+# -----------------------------------------
 
 @app.get("/")
 async def root():
+
+    logger.info(
+        "Health check endpoint called"
+    )
+
     return {
-        "message": "Reportly API is running"
+        "message": "Reportly API Running"
     }
 
-# --------------------------------------------------
-# PDF Generator Function
-# --------------------------------------------------
 
-def generate_pdf(report_text: str, file_path: str):
-    try:
-        doc = SimpleDocTemplate(file_path)
-
-        styles = getSampleStyleSheet()
-
-        elements = []
-
-        title = Paragraph(
-            "<b>Generated Report</b>",
-            styles["Title"]
-        )
-
-        elements.append(title)
-
-        elements.append(
-            Spacer(1, 12)
-        )
-
-        paragraphs = report_text.split("\n")
-
-        for para in paragraphs:
-            if para.strip():
-                p = Paragraph(
-                    para,
-                    styles["BodyText"]
-                )
-                elements.append(p)
-
-                elements.append(
-                    Spacer(1, 12)
-                )
-
-        doc.build(elements)
-
-        logger.info("PDF generated successfully")
-
-    except Exception as e:
-
-        logger.error(
-            f"PDF generation failed: {str(e)}"
-        )
-
-        raise
-
-# --------------------------------------------------
+# -----------------------------------------
 # Generate Report Endpoint
-# --------------------------------------------------
+# -----------------------------------------
 
 @app.post("/generate-report")
-async def generate_report(request: ReportRequest):
+async def generate_report(
+    request: ReportRequest
+):
 
     try:
 
         logger.info(
-            f"Received request for topic: {request.topic}"
+            f"Generating report for topic: {request.topic}"
         )
 
-        # Run workflow safely
-        result = await run_in_threadpool(
-            orchestrator_worker.invoke,
+        # -----------------------------------------
+        # Generate Report
+        # -----------------------------------------
+
+        result = await orchestrator_worker.ainvoke(
             {
                 "topic": request.topic
             }
         )
 
-        report_text = result.get(
+        report = result.get(
             "final_report"
         )
 
-        if not report_text:
+        if not report:
 
             raise HTTPException(
                 status_code=500,
                 detail="Report generation failed"
             )
 
-        file_name = f"report_{uuid.uuid4().hex}.pdf"
-
-        file_path = os.path.join(
-            "reports",
-            file_name
-        )
+        # -----------------------------------------
+        # Create Reports Folder
+        # -----------------------------------------
 
         os.makedirs(
             "reports",
             exist_ok=True
         )
 
-        # Generate PDF safely
-        await run_in_threadpool(
-            generate_pdf,
-            report_text,
-            file_path
+        # -----------------------------------------
+        # Generate PDF File Name
+        # -----------------------------------------
+
+        file_name = (
+            f"{uuid.uuid4().hex}.pdf"
+        )
+
+        output_path = os.path.join(
+            "reports",
+            file_name
+        )
+
+        # -----------------------------------------
+        # Generate PDF
+        # -----------------------------------------
+
+        generate_pdf(
+            topic=request.topic,
+            report_text=report,
+            output_path=output_path
         )
 
         logger.info(
-            "Report generated successfully"
+            "Report PDF generated successfully"
         )
 
+        # -----------------------------------------
+        # Return PDF
+        # -----------------------------------------
+
         return FileResponse(
-            path=file_path,
+            path=output_path,
             filename=file_name,
             media_type="application/pdf"
         )
 
-    except HTTPException as e:
+    except HTTPException as http_error:
 
-        raise e
+        logger.error(
+            f"HTTP Error: {http_error.detail}"
+        )
+
+        raise http_error
 
     except Exception as e:
 
         logger.error(
-            f"Unexpected error: {str(e)}"
+            f"Unexpected Error: {str(e)}"
         )
 
         raise HTTPException(

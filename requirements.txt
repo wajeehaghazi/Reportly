@@ -4,3 +4,5 @@ langchain-openai
 pydantic
 python-dotenv
 ipython
+langchain-community
+tavily-python

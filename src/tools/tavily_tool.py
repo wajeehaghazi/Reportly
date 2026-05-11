@@ -5,6 +5,10 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 
 from src.utils.logger import logger
 
+logger.info(
+    "Initializing Tavily Tool"
+)
+
 load_dotenv()
 
 

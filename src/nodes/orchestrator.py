@@ -1,32 +1,42 @@
-from langchain_core.messages import SystemMessage, HumanMessage
+import traceback
 
 from src.utils.planner import planner
-from src.schema.state import State
+
 from src.utils.logger import logger
 
 
-async def orchestrator(state: State):
+async def orchestrator(
+    state
+):
 
-    """Generate report sections"""
+    """
+    Generate report sections
+    using planner
+    """
 
     try:
 
-        logger.info("Generating report sections")
-
-        report_section = await planner.ainvoke(
-            {
-                "topic": state["topic"]
-            }
+        logger.info(
+            "Generating report sections"
         )
 
-        return {
-            "sections": report_section.sections
-        }
+        # CALL PLANNER
+        result = await planner(state)
+
+        logger.info(
+            "Planner completed successfully"
+        )
+
+        return result
 
     except Exception as e:
 
-        logger.error(f"Error in orchestrator: {e}")
+        logger.error(
+            f"Error in orchestrator: {e}"
+        )
 
-        return {
-            "sections": []
-        }
+        logger.error(
+            traceback.format_exc()
+        )
+
+        raise e

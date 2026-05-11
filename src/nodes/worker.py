@@ -1,3 +1,5 @@
+import traceback
+
 from langchain_core.messages import (
     SystemMessage,
     HumanMessage
@@ -25,15 +27,15 @@ async def llm_call(
     using Tavily research
     """
 
+    section_name = (
+        state["section"].name
+    )
+
+    section_description = (
+        state["section"].description
+    )
+
     try:
-
-        section_name = (
-            state["section"].name
-        )
-
-        section_description = (
-            state["section"].description
-        )
 
         logger.info(
             f"Generating section: {section_name}"
@@ -42,6 +44,10 @@ async def llm_call(
         # ---------------------------------------------------
         # TAVILY SEARCH
         # ---------------------------------------------------
+
+        logger.info(
+            f"Starting Tavily search for: {section_name}"
+        )
 
         search_query = f"""
         {section_name}
@@ -54,6 +60,26 @@ async def llm_call(
                 "query": search_query
             }
         )
+
+        logger.info(
+            f"Tavily search completed for: {section_name}"
+        )
+
+        # ---------------------------------------------------
+        # HANDLE EMPTY RESULTS
+        # ---------------------------------------------------
+
+        if not search_results:
+
+            logger.warning(
+                f"No Tavily results found for: {section_name}"
+            )
+
+        else:
+
+            logger.info(
+                f"Found {len(search_results)} search results"
+            )
 
         # ---------------------------------------------------
         # FORMAT SEARCH RESULTS
@@ -98,6 +124,10 @@ Source:
         # GENERATE REPORT SECTION
         # ---------------------------------------------------
 
+        logger.info(
+            f"Sending section to LLM: {section_name}"
+        )
+
         section = await model.ainvoke(
             [
                 SystemMessage(
@@ -135,6 +165,10 @@ Avoid giant walls of text.
         )
 
         logger.info(
+            f"LLM generation completed: {section_name}"
+        )
+
+        logger.info(
             f"Completed section: {section_name}"
         )
 
@@ -147,9 +181,15 @@ Avoid giant walls of text.
     except Exception as e:
 
         logger.error(
-            f"Error in worker: {e}"
+            f"Worker failed for section: {section_name}"
         )
 
-        return {
-            "completed_sections": []
-        }
+        logger.error(
+            f"Error: {e}"
+        )
+
+        logger.error(
+            traceback.format_exc()
+        )
+
+        raise e

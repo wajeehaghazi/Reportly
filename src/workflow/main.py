@@ -1,3 +1,10 @@
+from src.utils.logger import logger
+
+
+logger.info(
+    "Application Started"
+)
+
 from langgraph.graph import (
     StateGraph,
     START,

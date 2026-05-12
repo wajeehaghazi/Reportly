@@ -15,5 +15,8 @@ dependencies = [
     "reportlab>=4.4.10",
     "tavily-python>=0.7.24",
     "uvicorn>=0.46.0",
+    "celery>=5.5.3",
+    "redis>=6.4.0",
+    "sse-starlette>=2.1.3"
     
 ]

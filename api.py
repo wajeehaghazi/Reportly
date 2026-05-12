@@ -49,6 +49,7 @@ app = FastAPI(
 
 class ReportRequest(BaseModel):
 
+
     topic: str
 
 
@@ -63,7 +64,13 @@ async def root():
         "Health check endpoint called"
     )
 
+
+    logger.info(
+        "Health check endpoint called"
+    )
+
     return {
+        "message": "Reportly API Running"
         "message": "Reportly API Running"
     }
 
@@ -215,6 +222,10 @@ async def download_report(
             status_code=404,
             detail="Report not found"
         )
+
+        # -----------------------------------------
+        # Return PDF
+        # -----------------------------------------
 
     return FileResponse(
         path=file_path,

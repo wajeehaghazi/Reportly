@@ -6,3 +6,6 @@ python-dotenv
 ipython
 langchain-community
 tavily-python
+celery
+redis
+sse-starlette
